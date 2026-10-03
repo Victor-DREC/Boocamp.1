@@ -2,8 +2,7 @@
 
 /* =====================================================================
    REPARACEL - Sistema de turnos y taller de reparación
-   - Datos: localStorage (persisten al recargar)
-   - Sincronización entre pantallas: BroadcastChannel
+   - Sincronización multi-pantalla: BroadcastChannel + Evento 'storage' + Heartbeat
    - Iconografía: SVG técnicos vectoriales (cero emojis)
    - Diseño: Claro, profesional y de alta visibilidad para clientes
    ===================================================================== */
@@ -40,7 +39,6 @@ const RC = (() => {
     listo:     'Listo'
   };
 
-  // Opciones que el cliente puede elegir
   const DANOS = [
     'Daño de pantalla',
     'Daño de batería',
@@ -52,29 +50,110 @@ const RC = (() => {
   ];
 
   const KEY = 'reparcel_db_v1';
-  const canal = ('BroadcastChannel' in window) ? new BroadcastChannel('reparcel') : null;
+  const CHANNEL_NAME = 'reparacel_broadcast_channel';
+
+  /* ---------- Inicialización segura de BroadcastChannel ---------- */
+  let canal = null;
+  try {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      canal = new BroadcastChannel(CHANNEL_NAME);
+    }
+  } catch (e) {
+    console.warn('BroadcastChannel no disponible en este entorno, usando fallback de almacenamiento:', e);
+  }
+
   const oyentes = [];
 
-  /* ---------- Almacenamiento ---------- */
-  const vacio = () => ({ turnos: [], tecnicos: [], contadores: { A: 0, B: 0, C: 0 }, seq: 0, extraSeq: 0, modo: 'auto' });
+  /* ---------- Almacenamiento y Notificación Inmediata ---------- */
+  const vacio = () => ({
+    turnos: [],
+    tecnicos: [],
+    contadores: { A: 0, B: 0, C: 0 },
+    seq: 0,
+    extraSeq: 0,
+    modo: 'auto',
+    ultimoCambio: Date.now()
+  });
 
   function cargar() {
     try {
-      const db = JSON.parse(localStorage.getItem(KEY));
+      const raw = localStorage.getItem(KEY);
+      const db = raw ? JSON.parse(raw) : null;
       return db ? Object.assign(vacio(), db) : vacio();
-    } catch { return vacio(); }
+    } catch {
+      return vacio();
+    }
   }
 
-  function guardar(db) {
-    localStorage.setItem(KEY, JSON.stringify(db));
-    if (canal) canal.postMessage({ tipo: 'actualizado', t: Date.now() });
-    oyentes.forEach(fn => fn(db));          // BroadcastChannel no notifica a la misma pestaña
+  function guardar(db, metadata = {}) {
+    db.ultimoCambio = Date.now();
+    try {
+      localStorage.setItem(KEY, JSON.stringify(db));
+    } catch (e) {
+      console.error('Error al guardar en localStorage:', e);
+    }
+
+    // 1. Notificar a través de BroadcastChannel a TODAS las otras pestañas/pantallas
+    if (canal) {
+      try {
+        canal.postMessage({
+          tipo: 'actualizado',
+          accion: metadata.accion || 'cambio',
+          id: metadata.id || null,
+          estado: metadata.estado || null,
+          db: db,
+          t: db.ultimoCambio
+        });
+      } catch (err) {
+        console.warn('Error emitiendo por BroadcastChannel:', err);
+      }
+    }
+
+    // 2. Notificar oyentes registrados en la misma pestaña
+    oyentes.forEach(fn => {
+      try { fn(db); } catch (e) { console.error('Error en oyente local:', e); }
+    });
   }
 
-  function onChange(fn) { oyentes.push(fn); }
-  if (canal) canal.onmessage = () => { const db = cargar(); oyentes.forEach(fn => fn(db)); };
+  function onChange(fn) {
+    oyentes.push(fn);
+  }
 
-  /* ---------- Utilidades ---------- */
+  /* ---------- Receptores de sincronización multi-pantalla ---------- */
+  // 1. Recepción vía BroadcastChannel
+  if (canal) {
+    canal.onmessage = (event) => {
+      try {
+        const dbRecibida = (event && event.data && event.data.db) ? event.data.db : cargar();
+        oyentes.forEach(fn => {
+          try { fn(dbRecibida); } catch (e) { console.error(e); }
+        });
+      } catch (err) {
+        console.error('Error procesando mensaje de BroadcastChannel:', err);
+      }
+    };
+  }
+
+  // 2. Recepción vía Evento 'storage' nativo (funciona en todas las pestañas cruzadas)
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (event) => {
+      if (event.key === KEY) {
+        try {
+          const dbActualizada = event.newValue ? JSON.parse(event.newValue) : cargar();
+          oyentes.forEach(fn => {
+            try { fn(dbActualizada); } catch (e) { console.error(e); }
+          });
+        } catch {
+          const dbActualizada = cargar();
+          oyentes.forEach(fn => {
+            try { fn(dbActualizada); } catch (e) { console.error(e); }
+          });
+        }
+      }
+    });
+  }
+
+  /* ---------- Módulos dinámicos ---------- */
   function getModulos(db) {
     const base = Object.entries(MODULOS).map(([letra, m]) => ({
       letra, nombre: m.nombre, dispositivos: [m.dispositivo], extra: false,
@@ -95,7 +174,6 @@ const RC = (() => {
 
   const iconosDe = disps => disps.map(d => ICONOS[d] || '').join(' ');
 
-  // Elige el módulo con menos turnos pendientes entre los que atienden ese dispositivo
   function moduloPara(db, disp) {
     const candidatos = getModulos(db).filter(m => m.dispositivos.includes(disp));
     const conTecnico = candidatos.filter(m => m.tecnicos.length);
@@ -141,13 +219,12 @@ const RC = (() => {
       estadoDesde: Date.now()
     };
     db.turnos.push(turno);
-    guardar(db);
+    guardar(db, { accion: 'crear_turno', id: turno.n, estado: 'espera' });
 
     const adelante = db.turnos.filter(t => t.modulo === modulo && t.n < turno.n && t.estado !== 'listo').length;
     return { ok: true, turno, adelante };
   }
 
-  // Técnico del módulo del turno (prefiere uno que no esté reparando otro equipo)
   function tecnicoDeModulo(db, turno) {
     const mod = getModulo(db, turno.modulo);
     const candidatos = mod.tecnicos.filter(x => x.dispositivos.includes(turno.dispositivo));
@@ -161,16 +238,19 @@ const RC = (() => {
     const t = db.turnos.find(x => x.n === id);
     if (!t) return { ok: false, error: 'Turno no encontrado.' };
 
-    // Un solo turno activo por módulo (un técnico por módulo)
     if (estado === 'siguiente' && db.turnos.some(x => x.modulo === t.modulo && x.n !== id && activo(x))) {
-      return { ok: false, error: `El ${getModulo(db, t.modulo).nombre} ya tiene un turno en atención.` };
+      return { ok: false, error: `El ${getModulo(db, t.modulo).nombre} ya tiene un turno en atención activa.` };
     }
 
     if (estado === 'reparando') {
-      const tec = db.tecnicos.find(x => x.id === tecnicoId);
-      if (!tec) return { ok: false, error: 'Selecciona un técnico activo antes de iniciar la reparación.' };
+      let tec = db.tecnicos.find(x => x.id === tecnicoId);
+      if (!tec && db.tecnicos.length > 0) {
+        const mod = getModulo(db, t.modulo);
+        tec = mod.tecnicos.find(x => x.dispositivos.includes(t.dispositivo)) || db.tecnicos[0];
+      }
+      if (!tec) return { ok: false, error: 'Selecciona o registra un técnico activo antes de iniciar la reparación.' };
       if (!tec.dispositivos.includes(t.dispositivo)) {
-        return { ok: false, error: `${tec.nombre} no trabaja con ${t.dispositivo}s.` };
+        return { ok: false, error: `${tec.nombre} no está asignado para trabajar con ${t.dispositivo}s.` };
       }
       const mod = getModulo(db, t.modulo);
       if (mod.tecnicos.length && !mod.tecnicos.some(x => x.id === tec.id)) {
@@ -181,7 +261,9 @@ const RC = (() => {
 
     t.estado = estado;
     t.estadoDesde = Date.now();
-    guardar(db);
+    
+    // Guardar y notificar a todas las pantallas abiertas
+    guardar(db, { accion: 'cambiar_estado', id: t.n, estado: estado });
     return { ok: true };
   }
 
@@ -189,18 +271,18 @@ const RC = (() => {
     const db = cargar();
     db.modo = modo;
     db.turnos.forEach(t => { if (activo(t)) t.estadoDesde = Date.now(); });
-    guardar(db);
+    guardar(db, { accion: 'set_modo', modo: modo });
   }
 
   function limpiarFinalizados() {
     const db = cargar();
     db.turnos = db.turnos.filter(t => t.estado !== 'listo');
-    guardar(db);
+    guardar(db, { accion: 'limpiar_finalizados' });
   }
 
   function reiniciarTodo() {
     const db = cargar();
-    guardar(Object.assign(vacio(), { tecnicos: db.tecnicos, extraSeq: db.extraSeq, modo: db.modo }));
+    guardar(Object.assign(vacio(), { tecnicos: db.tecnicos, extraSeq: db.extraSeq, modo: db.modo }), { accion: 'reiniciar_todo' });
   }
 
   /* ---------- Técnicos ---------- */
@@ -212,18 +294,16 @@ const RC = (() => {
     const db = cargar();
     if (db.tecnicos.some(t => t.cedula === cedula)) return { ok: false, error: 'Ya existe un técnico con esa cédula.' };
 
-    // Los 3 primeros técnicos (base) se muestran en los módulos A/B/C según sus dispositivos.
-    // Desde el 4.º se crea un módulo nuevo (D, E, F...) para ese técnico.
     const id = Math.max(Date.now(), ...db.tecnicos.map(t => t.id + 1), 1);
     const nuevo = { id, nombre: nombre.trim(), cedula, dispositivos, modulo: null };
     const base = db.tecnicos.filter(t => !t.modulo).length;
     if (base >= 3) {
-      if (db.extraSeq >= 23) return { ok: false, error: 'Se alcanzó el máximo de módulos.' };
+      if (db.extraSeq >= 23) return { ok: false, error: 'Se alcanzó el máximo de módulos permitidos.' };
       nuevo.modulo = String.fromCharCode(68 + db.extraSeq);   // 68 = 'D'
       db.extraSeq++;
     }
     db.tecnicos.push(nuevo);
-    guardar(db);
+    guardar(db, { accion: 'registrar_tecnico', id: nuevo.id });
     return { ok: true, modulo: nuevo.modulo };
   }
 
@@ -231,19 +311,16 @@ const RC = (() => {
     const db = cargar();
     const tec = db.tecnicos.find(t => t.id === id);
     db.tecnicos = db.tecnicos.filter(t => t.id !== id);
-    // Si tenía módulo propio, sus turnos pendientes vuelven a la cola de otro módulo
     if (tec && tec.modulo) {
       db.turnos.filter(t => t.modulo === tec.modulo && t.estado !== 'listo').forEach(t => {
         t.modulo = moduloPara(db, t.dispositivo);
         t.estado = 'espera'; t.tecnico = null; t.estadoDesde = Date.now();
       });
     }
-    guardar(db);
+    guardar(db, { accion: 'eliminar_tecnico', id: id });
   }
 
-  /* ---------- Motor automático ----------
-     Idempotente: se basa en marcas de tiempo guardadas.
-     En espera -> Siguiente (5 s) -> Reparando (5 s) -> Listo = 10 s */
+  /* ---------- Motor automático ---------- */
   function tick() {
     const db = cargar();
     if (db.modo !== 'auto') return;
@@ -267,7 +344,7 @@ const RC = (() => {
       if (prox) { prox.estado = 'siguiente'; prox.estadoDesde = ahora; cambio = true; }
     });
 
-    if (cambio) guardar(db);
+    if (cambio) guardar(db, { accion: 'tick_auto' });
   }
 
   const iniciarMotor = () => setInterval(tick, 1000);
@@ -309,7 +386,6 @@ function initIndex() {
 
   if (!vistaInicio || !vistaTurno) return;
 
-  // Llenar la lista desplegable de daños
   if ($('#dano')) {
     $('#dano').innerHTML = '<option value="">— Selecciona el diagnóstico o servicio —</option>' +
       RC.DANOS.map(d => `<option value="${d}">${d}</option>`).join('');
@@ -324,12 +400,10 @@ function initIndex() {
   window.addEventListener('hashchange', ruta);
   ruta();
 
-  // Solo números en cédula
   if ($('#cedula')) {
     $('#cedula').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, ''); });
   }
 
-  // Vista previa del módulo asignado
   const actualizarHint = () => {
     if (!form || !form.dispositivo) return;
     const db = RC.cargar();
@@ -379,19 +453,24 @@ function initIndex() {
 }
 
 /* =====================================================================
-   PANTALLA 3: pantalla.html (cliente - ALTA VISIBILIDAD)
+   PANTALLA 3: pantalla.html (cliente - SINCRONIZADA EN TIEMPO REAL)
    ===================================================================== */
 function initPantalla() {
   let previo = {};
+  let ultimoTimestamp = 0;
 
   function render(db) {
+    if (!db) return;
+    ultimoTimestamp = db.ultimoCambio || Date.now();
+
     // Chip de modo
     const chipModo = $('#chip-modo');
     if (chipModo) {
       chipModo.textContent = db.modo === 'auto' ? 'Modo: Automático' : 'Modo: Manual (Técnico)';
+      chipModo.className = db.modo === 'auto' ? 'chip' : 'chip chip-manual';
     }
 
-    // Tarjetas por módulo (Grandes y claras para sala de espera)
+    // Tarjetas por módulo
     const html = RC.getModulos(db).map(m => {
       const letra = m.letra;
       const tecHtml = m.tecnicos.length
@@ -403,7 +482,7 @@ function initPantalla() {
       const esperando = delMod.filter(t => t.estado === 'espera').length;
 
       return `
-        <article class="modulo">
+        <article class="modulo ${sig ? 'modulo-llamando' : ''}">
           <div class="modulo-head">
             <strong>${m.nombre}${m.extra ? '<span class="nuevo">Extra</span>' : ''}</strong>
             <span class="modulo-disp">${RC.iconosDe(m.dispositivos)} ${m.dispositivos.join(' / ')}</span>
@@ -455,8 +534,28 @@ function initPantalla() {
   };
   setInterval(reloj, 1000); reloj();
 
-  RC.onChange(render);
+  // 1. Suscripción instantánea a eventos de cambio
+  RC.onChange(db => {
+    render(db);
+  });
+
+  // 2. Render inicial
   render(RC.cargar());
+
+  // 3. Heartbeat / Poller de seguridad (cada 400ms) para garantizar 100% de actualización
+  // incluso si la pestaña está en segundo plano o el navegador suspende BroadcastChannel
+  setInterval(() => {
+    try {
+      const raw = localStorage.getItem('reparcel_db_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.ultimoCambio && parsed.ultimoCambio !== ultimoTimestamp) {
+          render(parsed);
+        }
+      }
+    } catch (e) {}
+  }, 400);
+
   RC.iniciarMotor();
 }
 
@@ -509,7 +608,7 @@ function initTecnico() {
     });
   }
 
-  // Delegación de eventos en técnicos y tabla
+  // Delegación de eventos en técnicos
   if ($('#lista-tecnicos')) {
     $('#lista-tecnicos').addEventListener('click', e => {
       const b = e.target.closest('[data-del]');
@@ -520,13 +619,29 @@ function initTecnico() {
     });
   }
 
+  // Despacho de turnos por parte del técnico
   if ($('#tabla-gestion')) {
     $('#tabla-gestion').addEventListener('click', e => {
       const b = e.target.closest('[data-estado]');
       if (!b) return;
-      const r = RC.cambiarEstado(Number(b.dataset.id), b.dataset.estado, tecnicoActivo);
-      if (!r.ok) toast(r.error, true);
-      else toast(`Turno actualizado a: ${RC.ESTADOS[b.dataset.estado]}`);
+      const turnoId = Number(b.dataset.id);
+      const nuevoEstado = b.dataset.estado;
+
+      // Auto-seleccionar primer técnico si aún no seleccionó uno
+      if (nuevoEstado === 'reparando' && !tecnicoActivo) {
+        const dbActual = RC.cargar();
+        if (dbActual.tecnicos.length > 0) {
+          tecnicoActivo = dbActual.tecnicos[0].id;
+          if (selTec) selTec.value = String(tecnicoActivo);
+        }
+      }
+
+      const r = RC.cambiarEstado(turnoId, nuevoEstado, tecnicoActivo);
+      if (!r.ok) {
+        toast(r.error, true);
+      } else {
+        toast(`Turno actualizado a: ${RC.ESTADOS[nuevoEstado]}`);
+      }
     });
   }
 
@@ -536,7 +651,7 @@ function initTecnico() {
     if ($('#modo-manual')) $('#modo-manual').classList.toggle('on', manual);
     if ($('#hint-modo')) {
       $('#hint-modo').textContent = manual
-        ? 'Modo manual: tú decides cuándo cambia el estado de cada turno.'
+        ? 'Modo manual: tú decides cuándo cambia el estado de cada turno. La pantalla de clientes se actualiza automáticamente.'
         : `Modo automático: cada turno pasa de "Siguiente" a "Listo" en ${(RC.CONFIG.tiempoSiguiente + RC.CONFIG.tiempoReparando) / 1000} segundos.`;
     }
 
@@ -555,18 +670,21 @@ function initTecnico() {
 
     // Selector de técnico activo
     if (selTec) {
+      if (!tecnicoActivo && db.tecnicos.length > 0) {
+        tecnicoActivo = db.tecnicos[0].id;
+      }
       selTec.innerHTML = '<option value="">— Selecciona técnico activo —</option>' +
         db.tecnicos.map(t => `<option value="${t.id}" ${t.id === tecnicoActivo ? 'selected' : ''}>${RC.esc(t.nombre)} (${t.dispositivos.join(', ')})</option>`).join('');
       if (!db.tecnicos.some(t => t.id === tecnicoActivo)) tecnicoActivo = null;
     }
 
-    // Gestión de turnos
+    // Botones de acción según el modo
     const dis = manual ? '' : 'disabled';
     const acciones = t => {
-      if (t.estado === 'espera')    return `<button class="btn-accion" ${dis} data-id="${t.n}" data-estado="siguiente">Llamar</button>`;
-      if (t.estado === 'siguiente') return `<button class="btn-accion rep" ${dis} data-id="${t.n}" data-estado="reparando">Reparar</button>
-                                            <button class="btn-accion ok" ${dis} data-id="${t.n}" data-estado="listo">Listo</button>`;
-      if (t.estado === 'reparando') return `<button class="btn-accion ok" ${dis} data-id="${t.n}" data-estado="listo">Listo</button>`;
+      if (t.estado === 'espera')    return `<button class="btn-accion" ${dis} data-id="${t.n}" data-estado="siguiente" title="Llamar al banco">Llamar</button>`;
+      if (t.estado === 'siguiente') return `<button class="btn-accion rep" ${dis} data-id="${t.n}" data-estado="reparando" title="Iniciar reparación">Reparar</button>
+                                            <button class="btn-accion ok" ${dis} data-id="${t.n}" data-estado="listo" title="Finalizar servicio">Listo</button>`;
+      if (t.estado === 'reparando') return `<button class="btn-accion ok" ${dis} data-id="${t.n}" data-estado="listo" title="Finalizar servicio">Listo</button>`;
       return '—';
     };
 
@@ -591,7 +709,6 @@ function initTecnico() {
 
 /* ---------- Arranque según la página ---------- */
 document.addEventListener('DOMContentLoaded', () => {
-  // Inicializar 3 técnicos base si la base está vacía (comportamiento inicial óptimo)
   const initialDb = RC.cargar();
   if (initialDb.tecnicos.length === 0) {
     RC.registrarTecnico({ nombre: 'Carlos Mendoza', cedula: '1712345678', dispositivos: ['celular', 'tablet'] });
