@@ -34,7 +34,7 @@
   <main class="container wide">
 
     <!-- Bloque de Autenticación Exclusiva Super Admin -->
-    <section class="card form-card login-card" id="bloque-login-admin">
+    <section class="card form-card login-card login-card-admin" id="bloque-login-admin">
       <div class="login-head admin-head">
         <div class="login-ico admin-ico">
           <svg class="ico-svg lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
@@ -45,126 +45,200 @@
 
       <form id="form-login-admin" novalidate>
         <label for="pass-admin">Contraseña Única de Super Admin</label>
-        <input type="password" id="pass-admin" placeholder="Contraseña única (Por defecto: admin2026)" required autocomplete="current-password">
+        <div class="campo-icono">
+          <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input type="password" id="pass-admin" placeholder="Contraseña única (Por defecto: admin2026)" required autocomplete="current-password">
+        </div>
 
         <p class="error" id="error-login-admin" role="alert"></p>
-        <button class="btn" type="submit">Autenticar Super Admin</button>
+        <button class="btn" type="submit">
+          <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Autenticar Super Admin</span>
+        </button>
       </form>
 
       <div class="login-footer">
-        <a href="tecnico.html">&larr; Volver al Panel de Técnico</a>
+        <a href="tecnico.html">
+          <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+          <span>Volver al Panel de Técnico</span>
+        </a>
       </div>
     </section>
 
     <!-- Bloque Panel Super Admin (Visible solo tras autenticación) -->
-    <section id="bloque-panel-admin" hidden>
-      <div class="grid-tec">
+    <section class="admin-panel" id="bloque-panel-admin" hidden>
 
-        <!-- Columna Izquierda: Formulario para Agregar Nuevo Técnico -->
-        <section class="card">
-          <h2>Nuevo Técnico</h2>
-          <form id="form-admin-tecnico" novalidate>
-            <label for="adm-nombre">Nombre y Apellido</label>
-            <input id="adm-nombre" maxlength="60" placeholder="Ej. Ing. Carlos Mendoza" required>
+      <!-- Pestañas: funcionan solo con HTML + CSS (radios ocultos) -->
+      <input type="radio" name="admin-tab" id="tab-tecnicos" class="tab-radio" checked>
+      <input type="radio" name="admin-tab" id="tab-seguridad" class="tab-radio">
+      <input type="radio" name="admin-tab" id="tab-ubicacion" class="tab-radio">
 
-            <label for="adm-cedula">Cédula de Identidad (10 dígitos)</label>
-            <input id="adm-cedula" inputmode="numeric" maxlength="10" placeholder="10 dígitos numéricos" required>
+      <nav class="tab-bar" aria-label="Secciones del panel">
+        <label class="tab-btn" for="tab-tecnicos">
+          <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Técnicos</span>
+        </label>
+        <label class="tab-btn" for="tab-seguridad">
+          <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Seguridad</span>
+        </label>
+        <label class="tab-btn" for="tab-ubicacion">
+          <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>Ubicación del local</span>
+        </label>
+      </nav>
 
-            <label>Líneas de Especialidad / Dispositivos</label>
-            <div class="checks">
-              <label>
-                <input type="checkbox" name="disp" value="celular" checked>
-                <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
-                <span>Celulares</span>
-              </label>
-              <label>
-                <input type="checkbox" name="disp" value="tablet">
-                <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
-                <span>Tablets</span>
-              </label>
-              <label>
-                <input type="checkbox" name="disp" value="laptop">
-                <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
-                <span>Laptops</span>
-              </label>
+      <!-- ===== Pestaña 1: Técnicos ===== -->
+      <div class="tab-panel panel-tecnicos">
+        <div class="grid-tec">
+
+          <!-- Formulario para Agregar Nuevo Técnico -->
+          <section class="card">
+            <h2>Nuevo Técnico</h2>
+            <form id="form-admin-tecnico" novalidate>
+              <label for="adm-nombre">Nombre y Apellido</label>
+              <input id="adm-nombre" maxlength="60" placeholder="Ej. Ing. Carlos Mendoza" required>
+
+              <label for="adm-cedula">Cédula de Identidad (10 dígitos)</label>
+              <input id="adm-cedula" inputmode="numeric" maxlength="10" placeholder="10 dígitos numéricos" required>
+
+              <label>Líneas de Especialidad / Dispositivos</label>
+              <div class="checks checks-inline">
+                <label>
+                  <input type="checkbox" name="disp" value="celular" checked>
+                  <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                  <span>Celulares</span>
+                </label>
+                <label>
+                  <input type="checkbox" name="disp" value="tablet">
+                  <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
+                  <span>Tablets</span>
+                </label>
+                <label>
+                  <input type="checkbox" name="disp" value="laptop">
+                  <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
+                  <span>Laptops</span>
+                </label>
+              </div>
+              <p class="hint">Los primeros 3 técnicos corresponden a los módulos base A, B y C. A partir del 4.º se crea automáticamente un módulo nuevo (D, E, F...).</p>
+
+              <p class="error" id="error-admin-tec" role="alert"></p>
+              <button class="btn" type="submit">Agregar Técnico a la Nómina</button>
+            </form>
+          </section>
+
+          <!-- Nómina y Edición/Eliminación de Técnicos -->
+          <section class="card">
+            <div class="card-head">
+              <h2>Nómina Oficial de Técnicos</h2>
+              <span class="chip">Área Administrativa</span>
             </div>
-            <p class="hint">Los primeros 3 técnicos corresponden a los módulos base A, B y C. A partir del 4.º se crea automáticamente un módulo nuevo (D, E, F...).</p>
+            <p class="hint">Aquí puedes editar datos o dar de baja a técnicos del taller. Los cambios se sincronizan en tiempo real en los bancos y pantallas.</p>
 
-            <p class="error" id="error-admin-tec" role="alert"></p>
-            <button class="btn" type="submit">Agregar Técnico a la Nómina</button>
-          </form>
+            <ul class="lista-admin" id="lista-admin-tecnicos"></ul>
+          </section>
 
-          <!-- Gestión de Contraseñas del Taller -->
-          <div class="mt-admin-box">
-            <h3>Seguridad y Claves de Acceso</h3>
-            <form id="form-passwords" class="form-pass-inline">
-              <label for="cfg-pass-tec">Contraseña General de Técnicos:</label>
-              <input type="text" id="cfg-pass-tec" required>
-
-              <label for="cfg-pass-adm">Contraseña Única de Super Admin:</label>
-              <input type="text" id="cfg-pass-adm" required>
-
-              <button class="btn secundario mt" type="submit">Actualizar Contraseñas</button>
-            </form>
-          </div>
-
-          <!-- Gestión de Ubicación y Dirección del Local -->
-          <div class="mt-admin-box">
-            <h3>
-              <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
-              <span>Dirección y Ubicación del Local</span>
-            </h3>
-            <p class="hint">Modifica la información y coordenadas del taller. El mapa interactivo y la ruta en la pantalla principal se actualizarán en tiempo real.</p>
-            <form id="form-ubicacion-admin">
-              <label for="adm-loc-nombre">Nombre de la Sucursal / Taller:</label>
-              <input type="text" id="adm-loc-nombre" required placeholder="Ej. REPARACEL · Taller Central">
-
-              <label for="adm-loc-direccion">Dirección Física:</label>
-              <input type="text" id="adm-loc-direccion" required placeholder="Ej. Av. Amazonas N24-196 y Luis Cordero">
-
-              <label for="adm-loc-referencia">Referencia de Encuentro:</label>
-              <input type="text" id="adm-loc-referencia" placeholder="Ej. Frente al Edificio España, Local #12">
-
-              <label for="adm-loc-ciudad">Ciudad / Región:</label>
-              <input type="text" id="adm-loc-ciudad" required placeholder="Ej. Quito, Ecuador">
-
-              <label for="adm-loc-telefono">Teléfono / WhatsApp de Contacto:</label>
-              <input type="text" id="adm-loc-telefono" required placeholder="Ej. 099 999 9999">
-
-              <label for="adm-loc-horario">Horario de Atención:</label>
-              <input type="text" id="adm-loc-horario" required placeholder="Ej. Lunes a Viernes: 09:00 – 18:00 | Sábados: 09:00 – 13:00">
-
-              <div class="grid-2-inline">
-                <div>
-                  <label for="adm-loc-lat">Latitud GPS:</label>
-                  <input type="number" step="any" id="adm-loc-lat" required placeholder="-0.2038">
-                </div>
-                <div>
-                  <label for="adm-loc-lng">Longitud GPS:</label>
-                  <input type="number" step="any" id="adm-loc-lng" required placeholder="-78.4947">
-                </div>
-              </div>
-
-              <div class="acciones-fila" style="margin-top: 0.85rem;">
-                <button class="btn btn-sm" type="submit">Guardar Ubicación del Local</button>
-                <button class="btn btn-sm secundario" type="button" id="btn-gps-admin">Usar mi GPS actual</button>
-              </div>
-            </form>
-          </div>
-        </section>
-
-        <!-- Columna Derecha: Nómina y Edición/Eliminación de Técnicos -->
-        <section class="card">
-          <div class="card-head">
-            <h2>Nómina Oficial de Técnicos</h2>
-            <span class="chip">Área Administrativa</span>
-          </div>
-          <p class="hint">Aquí puedes editar datos o dar de baja a técnicos del taller. Los cambios se sincronizan en tiempo real en los bancos y pantallas.</p>
-
-          <ul class="lista-admin" id="lista-admin-tecnicos"></ul>
-        </section>
-
+        </div>
       </div>
+
+      <!-- ===== Pestaña 2: Seguridad ===== -->
+      <div class="tab-panel panel-seguridad">
+        <section class="card panel-centrado">
+          <div class="card-head">
+            <div>
+              <h2>Seguridad y Claves de Acceso</h2>
+              <p class="hint">Estas contraseñas protegen el Panel Técnico y esta área de Super Admin.</p>
+            </div>
+          </div>
+
+          <form id="form-passwords" class="form-pass-inline">
+            <div class="form-grid-2">
+              <div class="campo">
+                <label for="cfg-pass-tec">Contraseña General de Técnicos:</label>
+                <div class="campo-icono">
+                  <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                  <input type="text" id="cfg-pass-tec" required>
+                </div>
+              </div>
+
+              <div class="campo">
+                <label for="cfg-pass-adm">Contraseña Única de Super Admin:</label>
+                <div class="campo-icono">
+                  <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  <input type="text" id="cfg-pass-adm" required>
+                </div>
+              </div>
+            </div>
+
+            <button class="btn secundario" type="submit">Actualizar Contraseñas</button>
+          </form>
+        </section>
+      </div>
+
+      <!-- ===== Pestaña 3: Ubicación ===== -->
+      <div class="tab-panel panel-ubicacion">
+        <section class="card panel-centrado">
+          <div class="card-head">
+            <div>
+              <h2>
+                <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>Dirección y Ubicación del Local</span>
+              </h2>
+              <p class="hint">Modifica la información y coordenadas del taller. El mapa interactivo y la ruta en la pantalla principal se actualizarán en tiempo real.</p>
+            </div>
+          </div>
+
+          <form id="form-ubicacion-admin">
+            <div class="form-grid-2">
+              <div class="campo">
+                <label for="adm-loc-nombre">Nombre de la Sucursal / Taller:</label>
+                <input type="text" id="adm-loc-nombre" required placeholder="Ej. REPARACEL · Taller Central">
+              </div>
+
+              <div class="campo">
+                <label for="adm-loc-ciudad">Ciudad / Región:</label>
+                <input type="text" id="adm-loc-ciudad" required placeholder="Ej. Quito, Ecuador">
+              </div>
+
+              <div class="campo span-2">
+                <label for="adm-loc-direccion">Dirección Física:</label>
+                <input type="text" id="adm-loc-direccion" required placeholder="Ej. Av. Amazonas N24-196 y Luis Cordero">
+              </div>
+
+              <div class="campo">
+                <label for="adm-loc-referencia">Referencia de Encuentro:</label>
+                <input type="text" id="adm-loc-referencia" placeholder="Ej. Frente al Edificio España, Local #12">
+              </div>
+
+              <div class="campo">
+                <label for="adm-loc-telefono">Teléfono / WhatsApp de Contacto:</label>
+                <input type="text" id="adm-loc-telefono" required placeholder="Ej. 099 999 9999">
+              </div>
+
+              <div class="campo span-2">
+                <label for="adm-loc-horario">Horario de Atención:</label>
+                <input type="text" id="adm-loc-horario" required placeholder="Ej. Lunes a Viernes: 09:00 – 18:00 | Sábados: 09:00 – 13:00">
+              </div>
+
+              <div class="campo">
+                <label for="adm-loc-lat">Latitud GPS:</label>
+                <input type="number" step="any" id="adm-loc-lat" required placeholder="-0.2038">
+              </div>
+
+              <div class="campo">
+                <label for="adm-loc-lng">Longitud GPS:</label>
+                <input type="number" step="any" id="adm-loc-lng" required placeholder="-78.4947">
+              </div>
+            </div>
+
+            <div class="acciones-fila fila-inicio">
+              <button class="btn btn-auto" type="submit">Guardar Ubicación del Local</button>
+              <button class="btn btn-auto secundario" type="button" id="btn-gps-admin">Usar mi GPS actual</button>
+            </div>
+          </form>
+        </section>
+      </div>
+
     </section>
 
     <!-- Modal de Edición de Técnico -->
