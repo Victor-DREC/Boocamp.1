@@ -3,13 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>REPARACEL | Toma de turnos</title>
+  <title>REPARACEL | Toma de Turnos</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-page="index">
 
   <header class="topbar">
-    <a class="brand" href="index.html">🔧 REPARA<span>CEL</span></a>
+    <a class="brand" href="index.html">
+      <span class="brand-logo">
+        <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      </span>
+      <span>REPARA</span>CEL
+    </a>
     <span class="topbar-sub">Reparación y mantenimiento de equipos electrónicos</span>
   </header>
 
@@ -19,70 +24,120 @@
     <section id="vista-inicio">
       <div class="hero card">
         <h1>Bienvenido a REPARACEL</h1>
-        <p>Reparamos y damos mantenimiento a tus celulares, tablets y laptops.
-           Genera tu turno, y sigue el estado de tu equipo en tiempo real.</p>
+        <p>Reparamos y damos mantenimiento profesional a celulares, tablets y laptops.
+           Genera tu turno y sigue el estado de tu equipo en tiempo real desde la sala de espera.</p>
 
         <div class="acciones">
           <a class="btn-grande" href="#turno" id="btn-generar">
-            <span class="ico">🎟️</span><strong>Generar turno</strong><small>Agenda la atención de tu equipo</small>
+            <svg class="ico-svg lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 8 2 2-2 2"/><path d="m14 14 2 2-2 2"/></svg>
+            <strong>Generar Turno</strong>
+            <small>Agenda la atención y diagnóstico de tu equipo</small>
           </a>
           <a class="btn-grande alt" href="pantalla.html">
-            <span class="ico">📺</span><strong>Estado de equipos</strong><small>Turno siguiente y lista de clientes</small>
+            <svg class="ico-svg lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+            <strong>Estado de Equipos</strong>
+            <small>Turno siguiente y lista de atención en sala</small>
           </a>
           <a class="btn-grande dark" href="tecnico.html">
-            <span class="ico">🧰</span><strong>Panel del técnico</strong><small>Registrar técnicos y despachar turnos</small>
+            <svg class="ico-svg lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+            <strong>Panel del Técnico</strong>
+            <small>Registrar técnicos y despachar turnos</small>
           </a>
         </div>
       </div>
 
       <div class="grid-3">
         <article class="card info">
-          <h3>🕘 Horario</h3>
+          <h3>
+            <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Horario de Atención</span>
+          </h3>
           <p>Lunes a viernes: 09:00 – 18:00<br>Sábados: 09:00 – 13:00</p>
         </article>
+
         <article class="card info">
-          <h3>📍 Ubicación</h3>
+          <h3>
+            <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>Ubicación</span>
+          </h3>
           <p>Av. Principal y Calle Secundaria<br>Quito, Ecuador</p>
         </article>
+
         <article class="card info">
-          <h3>📞 Contacto</h3>
+          <h3>
+            <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span>Contacto</span>
+          </h3>
           <p>Tel: 099 999 9999<br>contacto@reparacel.com</p>
         </article>
       </div>
 
       <div class="card">
-        <h3>Módulos de atención</h3>
+        <h3>Módulos de Atención</h3>
         <div class="grid-3">
-          <div class="mod-info"><span class="letra">A</span> 📱 Celulares</div>
-          <div class="mod-info"><span class="letra">B</span> 📟 Tablets</div>
-          <div class="mod-info"><span class="letra">C</span> 💻 Laptops</div>
+          <div class="mod-info">
+            <span class="letra">A</span>
+            <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+            <span>Celulares</span>
+          </div>
+          <div class="mod-info">
+            <span class="letra">B</span>
+            <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
+            <span>Tablets</span>
+          </div>
+          <div class="mod-info">
+            <span class="letra">C</span>
+            <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
+            <span>Laptops</span>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- ========== PANTALLA 2: GENERAR TURNO ========== -->
     <section id="vista-turno" hidden>
-      <a class="volver" href="#">← Volver al inicio</a>
+      <a class="volver" href="#">
+        <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        <span>Volver al inicio</span>
+      </a>
 
       <div class="card form-card" id="bloque-form">
-        <h2>Generar turno</h2>
+        <h2>Generar Turno</h2>
         <form id="form-turno" novalidate>
-          <label for="cedula">Cédula</label>
-          <input id="cedula" name="cedula" inputmode="numeric" maxlength="10" placeholder="10 dígitos" autocomplete="off" required>
+          <label for="cedula">Cédula de Identidad</label>
+          <input id="cedula" name="cedula" inputmode="numeric" maxlength="10" placeholder="10 dígitos numéricos" autocomplete="off" required>
 
-          <label>Tipo de dispositivo</label>
+          <label>Tipo de Dispositivo</label>
           <div class="opciones">
-            <label class="opcion"><input type="radio" name="dispositivo" value="celular" checked><span>📱<br>Celular</span></label>
-            <label class="opcion"><input type="radio" name="dispositivo" value="tablet"><span>📟<br>Tablet</span></label>
-            <label class="opcion"><input type="radio" name="dispositivo" value="laptop"><span>💻<br>Laptop</span></label>
+            <label class="opcion">
+              <input type="radio" name="dispositivo" value="celular" checked>
+              <span>
+                <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+                <span>Celular</span>
+              </span>
+            </label>
+            <label class="opcion">
+              <input type="radio" name="dispositivo" value="tablet">
+              <span>
+                <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
+                <span>Tablet</span>
+              </span>
+            </label>
+            <label class="opcion">
+              <input type="radio" name="dispositivo" value="laptop">
+              <span>
+                <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
+                <span>Laptop</span>
+              </span>
+            </label>
           </div>
-          <p class="hint" id="hint-modulo">Se asignará al Módulo A</p>
+          <p class="hint" id="hint-modulo">Asignación automática: Módulo A</p>
 
-          <label for="dano">Daño o servicio requerido</label>
+          <label for="dano">Daño o Servicio Requerido</label>
           <select id="dano" name="dano" required></select>
 
           <p class="error" id="error-form" role="alert"></p>
-          <button class="btn" type="submit">Generar mi turno</button>
+          <button class="btn" type="submit">Generar mi Turno</button>
         </form>
       </div>
 
@@ -91,8 +146,8 @@
         <div class="ticket-codigo" id="ticket-codigo">A-001</div>
         <p id="ticket-detalle"></p>
         <div class="acciones-fila">
-          <a class="btn" href="pantalla.html">Ver estado de equipos</a>
-          <button class="btn secundario" id="btn-otro" type="button">Generar otro turno</button>
+          <a class="btn" href="pantalla.html">Ver Estado de Equipos</a>
+          <button class="btn secundario" id="btn-otro" type="button">Generar Otro Turno</button>
         </div>
       </div>
     </section>
