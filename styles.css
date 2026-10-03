@@ -161,6 +161,47 @@ a { color: inherit; text-decoration: none; }
   font-family: monospace;
 }
 
+.chip.chip-manual {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.chip.chip-sync {
+  background: #f0fdf4;
+  color: #166534;
+  border-color: #bbf7d0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.25s ease;
+}
+
+.sync-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background: #16a34a;
+  display: inline-block;
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+.pulse-sync {
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.22);
+}
+
+.modulo.modulo-llamando {
+  border-color: #93c5fd;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.12);
+}
+
 /* ---------- Layout Contenedores ---------- */
 .container {
   max-width: 980px;
@@ -971,3 +1012,214 @@ tr.flash { animation: flashRow 2s ease-out; }
 
 .toast.show { opacity: 1; transform: translateX(-50%); }
 .toast.err { background: #991b1b; }
+
+/* ---------- Login & Autenticación ---------- */
+.login-card {
+  max-width: 440px;
+  margin: 3rem auto;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+}
+
+.login-head {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.login-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: var(--primary);
+  margin-bottom: 1rem;
+}
+
+.login-ico.admin-ico {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.login-head h2 {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.login-head p {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 0.35rem 0 0;
+}
+
+.login-footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.login-footer a {
+  color: var(--primary);
+  font-weight: 700;
+  margin-left: 0.3rem;
+}
+
+.admin-badge-link {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.admin-badge-link:hover {
+  background: #fee2e2;
+}
+
+.btn-logout {
+  background: #f8fafc;
+  border-color: var(--border);
+  cursor: pointer;
+  color: #64748b;
+}
+
+.btn-logout:hover {
+  color: var(--danger);
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.card-desc {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 0.2rem 0 0;
+}
+
+/* ---------- Nómina Super Admin ---------- */
+.lista-admin {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-tec-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.9rem 1.1rem;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  gap: 1rem;
+}
+
+.admin-tec-item strong {
+  font-size: 0.96rem;
+  color: #0f172a;
+}
+
+.admin-tec-item small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+
+.admin-tec-actions {
+  display: flex;
+  gap: 0.45rem;
+  shrink: 0;
+}
+
+.btn-sm {
+  border: 1px solid var(--border);
+  background: #ffffff;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.btn-sm.btn-edit {
+  color: var(--primary);
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.btn-sm.btn-edit:hover {
+  background: #dbeafe;
+}
+
+.btn-sm.btn-del {
+  color: var(--danger);
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.btn-sm.btn-del:hover {
+  background: #fee2e2;
+}
+
+.mt-admin-box {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.mt-admin-box h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.form-pass-inline label {
+  margin-top: 0.7rem;
+}
+
+/* ---------- Modal de Edición ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.modal-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 480px;
+  width: 100%;
+  padding: 1.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-card h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.modal-actions .btn {
+  flex: 1;
+}

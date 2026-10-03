@@ -3,8 +3,8 @@
 /* =====================================================================
    REPARACEL - Sistema de turnos y taller de reparación
    - Sincronización multi-pantalla: BroadcastChannel + Evento 'storage' + Heartbeat
-   - Iconografía: SVG técnicos vectoriales (cero emojis)
-   - Diseño: Claro, profesional y de alta visibilidad para clientes
+   - Soporte de flujo continuo: "En reparación" + "Siguiente en turno" simultáneos
+   - Seguridad: Password general para Técnicos y Password único para Super Admin
    ===================================================================== */
 
 const RC = (() => {
@@ -13,10 +13,35 @@ const RC = (() => {
   const CONFIG = {
     tiempoSiguiente: 5000,   // ms que un turno permanece como "Siguiente" (modo automático)
     tiempoReparando: 5000,   // ms que permanece "Reparando" -> total: 10 s hasta finalizar
-    validarCedula: true      // false = acepta cualquier número de 10 dígitos (útil para pruebas)
+    validarCedula: true
   };
 
-  /* ---------- Iconos SVG técnicos (sin dependencias externas) ---------- */
+  /* ---------- Autenticación ---------- */
+  const AUTH_KEY = 'reparacel_auth_config_v1';
+  function getAuthConfig() {
+    try {
+      const raw = localStorage.getItem(AUTH_KEY);
+      return raw ? JSON.parse(raw) : { passTecnico: 'tecnico123', passAdmin: 'admin2026' };
+    } catch {
+      return { passTecnico: 'tecnico123', passAdmin: 'admin2026' };
+    }
+  }
+
+  function setAuthConfig(cfg) {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(cfg));
+  }
+
+  function verificarPassTecnico(pass) {
+    const cfg = getAuthConfig();
+    return pass === cfg.passTecnico;
+  }
+
+  function verificarPassAdmin(pass) {
+    const cfg = getAuthConfig();
+    return pass === cfg.passAdmin;
+  }
+
+  /* ---------- Iconos SVG técnicos ---------- */
   const ICONOS_SVG = {
     celular: `<svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>`,
     tablet:  `<svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>`,
@@ -51,20 +76,20 @@ const RC = (() => {
 
   const KEY = 'reparcel_db_v1';
   const CHANNEL_NAME = 'reparacel_broadcast_channel';
+  const PING_KEY = 'reparacel_ping';
 
-  /* ---------- Inicialización segura de BroadcastChannel ---------- */
   let canal = null;
   try {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       canal = new BroadcastChannel(CHANNEL_NAME);
     }
   } catch (e) {
-    console.warn('BroadcastChannel no disponible en este entorno, usando fallback de almacenamiento:', e);
+    console.warn('BroadcastChannel no disponible en este entorno:', e);
   }
 
   const oyentes = [];
 
-  /* ---------- Almacenamiento y Notificación Inmediata ---------- */
+  /* ---------- Almacenamiento ---------- */
   const vacio = () => ({
     turnos: [],
     tecnicos: [],
@@ -89,11 +114,11 @@ const RC = (() => {
     db.ultimoCambio = Date.now();
     try {
       localStorage.setItem(KEY, JSON.stringify(db));
+      localStorage.setItem(PING_KEY, String(db.ultimoCambio));
     } catch (e) {
       console.error('Error al guardar en localStorage:', e);
     }
 
-    // 1. Notificar a través de BroadcastChannel a TODAS las otras pestañas/pantallas
     if (canal) {
       try {
         canal.postMessage({
@@ -109,9 +134,8 @@ const RC = (() => {
       }
     }
 
-    // 2. Notificar oyentes registrados en la misma pestaña
     oyentes.forEach(fn => {
-      try { fn(db); } catch (e) { console.error('Error en oyente local:', e); }
+      try { fn(db); } catch (e) { console.error('Error en oyente:', e); }
     });
   }
 
@@ -119,27 +143,25 @@ const RC = (() => {
     oyentes.push(fn);
   }
 
-  /* ---------- Receptores de sincronización multi-pantalla ---------- */
-  // 1. Recepción vía BroadcastChannel
+  /* ---------- Recepción multi-pantalla ---------- */
   if (canal) {
-    canal.onmessage = (event) => {
+    canal.addEventListener('message', (event) => {
       try {
         const dbRecibida = (event && event.data && event.data.db) ? event.data.db : cargar();
         oyentes.forEach(fn => {
           try { fn(dbRecibida); } catch (e) { console.error(e); }
         });
       } catch (err) {
-        console.error('Error procesando mensaje de BroadcastChannel:', err);
+        console.error(err);
       }
-    };
+    });
   }
 
-  // 2. Recepción vía Evento 'storage' nativo (funciona en todas las pestañas cruzadas)
   if (typeof window !== 'undefined') {
     window.addEventListener('storage', (event) => {
-      if (event.key === KEY) {
+      if (event.key === KEY || event.key === PING_KEY) {
         try {
-          const dbActualizada = event.newValue ? JSON.parse(event.newValue) : cargar();
+          const dbActualizada = cargar();
           oyentes.forEach(fn => {
             try { fn(dbActualizada); } catch (e) { console.error(e); }
           });
@@ -208,18 +230,30 @@ const RC = (() => {
     const modulo = moduloPara(db, dispositivo);
     db.contadores[modulo] = (db.contadores[modulo] || 0) + 1;
     db.seq++;
+
+    // Si el módulo NO tiene actualmente un turno en 'siguiente', este puede entrar a 'siguiente' si tampoco hay esperando
+    const tieneSiguiente = db.turnos.some(t => t.modulo === modulo && t.estado === 'siguiente');
+    const estadoInicial = tieneSiguiente ? 'espera' : 'espera'; // Se mantiene en espera y el motor o llamado lo promueve
+
     const turno = {
       n: db.seq,
       codigo: `${modulo}-${String(db.contadores[modulo]).padStart(3, '0')}`,
       modulo, cedula, dispositivo,
       dano,
-      estado: 'espera',
+      estado: estadoInicial,
       tecnico: null,
       creado: Date.now(),
       estadoDesde: Date.now()
     };
     db.turnos.push(turno);
-    guardar(db, { accion: 'crear_turno', id: turno.n, estado: 'espera' });
+
+    // Si no había ningún turno en siguiente en este módulo, promover inmediatamente a siguiente
+    if (!tieneSiguiente) {
+      turno.estado = 'siguiente';
+      turno.estadoDesde = Date.now();
+    }
+
+    guardar(db, { accion: 'crear_turno', id: turno.n, estado: turno.estado });
 
     const adelante = db.turnos.filter(t => t.modulo === modulo && t.n < turno.n && t.estado !== 'listo').length;
     return { ok: true, turno, adelante };
@@ -233,24 +267,35 @@ const RC = (() => {
     return t ? t.nombre : null;
   }
 
+  /* ---------- Cambiar Estado con Promoción Automática ---------- */
   function cambiarEstado(id, estado, tecnicoId) {
     const db = cargar();
     const t = db.turnos.find(x => x.n === id);
     if (!t) return { ok: false, error: 'Turno no encontrado.' };
 
-    if (estado === 'siguiente' && db.turnos.some(x => x.modulo === t.modulo && x.n !== id && activo(x))) {
-      return { ok: false, error: `El ${getModulo(db, t.modulo).nombre} ya tiene un turno en atención activa.` };
+    // Un módulo puede tener como máximo 1 en 'siguiente'
+    if (estado === 'siguiente') {
+      const otroSiguiente = db.turnos.find(x => x.modulo === t.modulo && x.n !== id && x.estado === 'siguiente');
+      if (otroSiguiente) {
+        return { ok: false, error: `El ${getModulo(db, t.modulo).nombre} ya tiene el turno ${otroSiguiente.codigo} como Siguiente.` };
+      }
     }
 
+    // Un módulo puede tener como máximo 1 en 'reparando'
     if (estado === 'reparando') {
+      const otroReparando = db.turnos.find(x => x.modulo === t.modulo && x.n !== id && x.estado === 'reparando');
+      if (otroReparando) {
+        return { ok: false, error: `El ${getModulo(db, t.modulo).nombre} ya tiene el turno ${otroReparando.codigo} en reparación.` };
+      }
+
       let tec = db.tecnicos.find(x => x.id === tecnicoId);
       if (!tec && db.tecnicos.length > 0) {
         const mod = getModulo(db, t.modulo);
         tec = mod.tecnicos.find(x => x.dispositivos.includes(t.dispositivo)) || db.tecnicos[0];
       }
-      if (!tec) return { ok: false, error: 'Selecciona o registra un técnico activo antes de iniciar la reparación.' };
+      if (!tec) return { ok: false, error: 'Selecciona un técnico activo antes de iniciar la reparación.' };
       if (!tec.dispositivos.includes(t.dispositivo)) {
-        return { ok: false, error: `${tec.nombre} no está asignado para trabajar con ${t.dispositivo}s.` };
+        return { ok: false, error: `${tec.nombre} no está certificado para trabajar con ${t.dispositivo}s.` };
       }
       const mod = getModulo(db, t.modulo);
       if (mod.tecnicos.length && !mod.tecnicos.some(x => x.id === tec.id)) {
@@ -261,8 +306,43 @@ const RC = (() => {
 
     t.estado = estado;
     t.estadoDesde = Date.now();
-    
-    // Guardar y notificar a todas las pantallas abiertas
+
+    // =========================================================================
+    // REGLA SOLICITADA: Cuando un cliente se va a "en reparación", aparece el
+    // siguiente cliente al turno en todos los módulos inmediatamente.
+    // =========================================================================
+    if (estado === 'reparando') {
+      // En TODOS los módulos: si un módulo tiene clientes esperando y no tiene turno como 'siguiente',
+      // promover inmediatamente al siguiente turno en espera a 'siguiente'
+      const modulos = getModulos(db);
+      modulos.forEach(m => {
+        const tieneSiguiente = db.turnos.some(x => x.modulo === m.letra && x.estado === 'siguiente');
+        if (!tieneSiguiente) {
+          const proxEspera = db.turnos
+            .filter(x => x.modulo === m.letra && x.estado === 'espera' && x.n !== t.n)
+            .sort((a, b) => a.n - b.n)[0];
+          if (proxEspera) {
+            proxEspera.estado = 'siguiente';
+            proxEspera.estadoDesde = Date.now();
+          }
+        }
+      });
+    }
+
+    // Si finalizó (listo) y el módulo quedó sin 'siguiente', promover el siguiente de espera
+    if (estado === 'listo') {
+      const tieneSiguiente = db.turnos.some(x => x.modulo === t.modulo && x.estado === 'siguiente');
+      if (!tieneSiguiente) {
+        const proxEspera = db.turnos
+          .filter(x => x.modulo === t.modulo && x.estado === 'espera')
+          .sort((a, b) => a.n - b.n)[0];
+        if (proxEspera) {
+          proxEspera.estado = 'siguiente';
+          proxEspera.estadoDesde = Date.now();
+        }
+      }
+    }
+
     guardar(db, { accion: 'cambiar_estado', id: t.n, estado: estado });
     return { ok: true };
   }
@@ -285,11 +365,11 @@ const RC = (() => {
     guardar(Object.assign(vacio(), { tecnicos: db.tecnicos, extraSeq: db.extraSeq, modo: db.modo }), { accion: 'reiniciar_todo' });
   }
 
-  /* ---------- Técnicos ---------- */
+  /* ---------- Técnicos (Gestión exclusiva Super Admin) ---------- */
   function registrarTecnico({ nombre, cedula, dispositivos }) {
-    if (!nombre || nombre.trim().length < 3) return { ok: false, error: 'Ingresa el nombre del técnico.' };
-    if (!validarCedula(cedula)) return { ok: false, error: 'La cédula ingresada no es válida.' };
-    if (!dispositivos.length) return { ok: false, error: 'Selecciona al menos un dispositivo.' };
+    if (!nombre || nombre.trim().length < 3) return { ok: false, error: 'Ingresa el nombre del técnico (mínimo 3 letras).' };
+    if (!validarCedula(cedula)) return { ok: false, error: 'La cédula ingresada debe tener exactamente 10 dígitos numéricos.' };
+    if (!dispositivos || !dispositivos.length) return { ok: false, error: 'Selecciona al menos un tipo de dispositivo.' };
 
     const db = cargar();
     if (db.tecnicos.some(t => t.cedula === cedula)) return { ok: false, error: 'Ya existe un técnico con esa cédula.' };
@@ -305,6 +385,26 @@ const RC = (() => {
     db.tecnicos.push(nuevo);
     guardar(db, { accion: 'registrar_tecnico', id: nuevo.id });
     return { ok: true, modulo: nuevo.modulo };
+  }
+
+  function editarTecnico({ id, nombre, cedula, dispositivos }) {
+    if (!nombre || nombre.trim().length < 3) return { ok: false, error: 'Ingresa un nombre válido (mínimo 3 letras).' };
+    if (!validarCedula(cedula)) return { ok: false, error: 'La cédula debe tener exactamente 10 dígitos numéricos.' };
+    if (!dispositivos || !dispositivos.length) return { ok: false, error: 'Selecciona al menos un dispositivo.' };
+
+    const db = cargar();
+    const tec = db.tecnicos.find(t => t.id === id);
+    if (!tec) return { ok: false, error: 'Técnico no encontrado.' };
+
+    if (db.tecnicos.some(t => t.id !== id && t.cedula === cedula)) {
+      return { ok: false, error: 'Ya existe otro técnico registrado con esa cédula.' };
+    }
+
+    tec.nombre = nombre.trim();
+    tec.cedula = cedula.trim();
+    tec.dispositivos = dispositivos;
+    guardar(db, { accion: 'editar_tecnico', id });
+    return { ok: true };
   }
 
   function eliminarTecnico(id) {
@@ -329,19 +429,38 @@ const RC = (() => {
 
     db.turnos.forEach(t => {
       if (t.estado === 'siguiente' && ahora - t.estadoDesde >= CONFIG.tiempoSiguiente) {
-        t.estado = 'reparando'; t.estadoDesde = ahora;
+        // Pasa a reparando
+        t.estado = 'reparando';
+        t.estadoDesde = ahora;
         t.tecnico = t.tecnico || tecnicoDeModulo(db, t) || 'Taller Central';
         cambio = true;
+
+        // INMEDIATO: promover el siguiente en espera de ese módulo a 'siguiente'
+        const prox = db.turnos
+          .filter(x => x.modulo === t.modulo && x.estado === 'espera')
+          .sort((a, b) => a.n - b.n)[0];
+        if (prox) {
+          prox.estado = 'siguiente';
+          prox.estadoDesde = ahora;
+        }
       } else if (t.estado === 'reparando' && ahora - t.estadoDesde >= CONFIG.tiempoReparando) {
-        t.estado = 'listo'; t.estadoDesde = ahora;
+        t.estado = 'listo';
+        t.estadoDesde = ahora;
         cambio = true;
       }
     });
 
+    // En cualquier módulo que no tenga turno en 'siguiente', promover el primero de espera
     getModulos(db).forEach(({ letra: m }) => {
-      if (db.turnos.some(t => t.modulo === m && activo(t))) return;
-      const prox = db.turnos.filter(t => t.modulo === m && t.estado === 'espera').sort((a, b) => a.n - b.n)[0];
-      if (prox) { prox.estado = 'siguiente'; prox.estadoDesde = ahora; cambio = true; }
+      const tieneSiguiente = db.turnos.some(t => t.modulo === m && t.estado === 'siguiente');
+      if (!tieneSiguiente) {
+        const prox = db.turnos.filter(t => t.modulo === m && t.estado === 'espera').sort((a, b) => a.n - b.n)[0];
+        if (prox) {
+          prox.estado = 'siguiente';
+          prox.estadoDesde = ahora;
+          cambio = true;
+        }
+      }
     });
 
     if (cambio) guardar(db, { accion: 'tick_auto' });
@@ -350,11 +469,13 @@ const RC = (() => {
   const iniciarMotor = () => setInterval(tick, 1000);
 
   return {
+    KEY, CHANNEL_NAME, PING_KEY,
     CONFIG, MODULOS, ICONOS, ICONOS_SVG, ESTADOS, DANOS, activo,
     getModulos, getModulo, moduloPara, modulosDeTecnico, iconosDe,
     cargar, guardar, onChange, iniciarMotor,
     crearTurno, cambiarEstado, setModo, limpiarFinalizados, reiniciarTodo,
-    registrarTecnico, eliminarTecnico,
+    registrarTecnico, editarTecnico, eliminarTecnico,
+    getAuthConfig, setAuthConfig, verificarPassTecnico, verificarPassAdmin,
     enmascarar, hora, esc
   };
 })();
@@ -453,7 +574,7 @@ function initIndex() {
 }
 
 /* =====================================================================
-   PANTALLA 3: pantalla.html (cliente - SINCRONIZADA EN TIEMPO REAL)
+   PANTALLA 3: pantalla.html (cliente - FLUJO CONTINUO Y ALTA VISIBILIDAD)
    ===================================================================== */
 function initPantalla() {
   let previo = {};
@@ -463,26 +584,26 @@ function initPantalla() {
     if (!db) return;
     ultimoTimestamp = db.ultimoCambio || Date.now();
 
-    // Chip de modo
     const chipModo = $('#chip-modo');
     if (chipModo) {
       chipModo.textContent = db.modo === 'auto' ? 'Modo: Automático' : 'Modo: Manual (Técnico)';
       chipModo.className = db.modo === 'auto' ? 'chip' : 'chip chip-manual';
     }
 
-    // Tarjetas por módulo
     const html = RC.getModulos(db).map(m => {
       const letra = m.letra;
       const tecHtml = m.tecnicos.length
         ? m.tecnicos.map(t => `<span class="tec-chip">${RC.ICONOS_SVG.tecnico} ${RC.esc(t.nombre)}</span>`).join('')
         : '<span class="tec-vacio">Sin técnico asignado</span>';
+      
       const delMod = db.turnos.filter(t => t.modulo === letra);
-      const sig = delMod.find(t => t.estado === 'siguiente');
       const rep = delMod.find(t => t.estado === 'reparando');
-      const esperando = delMod.filter(t => t.estado === 'espera').length;
+      // Siguiente en Turno: el que esté en 'siguiente' o el primer turno en espera que no sea el que se está reparando
+      const sig = delMod.find(t => t.estado === 'siguiente') || delMod.find(t => t.estado === 'espera' && (!rep || t.n !== rep.n));
+      const esperando = delMod.filter(t => t.estado === 'espera' && (!sig || t.n !== sig.n)).length;
 
       return `
-        <article class="modulo ${sig ? 'modulo-llamando' : ''}">
+        <article class="modulo ${sig && sig.estado === 'siguiente' ? 'modulo-llamando' : ''}">
           <div class="modulo-head">
             <strong>${m.nombre}${m.extra ? '<span class="nuevo">Extra</span>' : ''}</strong>
             <span class="modulo-disp">${RC.iconosDe(m.dispositivos)} ${m.dispositivos.join(' / ')}</span>
@@ -494,7 +615,8 @@ function initPantalla() {
                 <span class="slot-title">Siguiente en Turno</span>
                 <span class="num ${sig ? 'siguiente' : 'nada'}">${sig ? sig.codigo : '—'}</span>
               </div>
-              ${sig ? '<span class="badge siguiente">Acercarse al banco</span>' : ''}
+              ${sig && sig.estado === 'siguiente' ? '<span class="badge siguiente">Acercarse al banco</span>' : ''}
+              ${sig && sig.estado === 'espera' ? '<span class="badge espera">En cola</span>' : ''}
             </div>
             <div class="slot slot-rep ${rep ? 'activo' : ''}">
               <div class="slot-info">
@@ -509,7 +631,6 @@ function initPantalla() {
     }).join('');
     if ($('#modulos')) $('#modulos').innerHTML = html;
 
-    // Tabla general de turnos
     const filas = [...db.turnos].sort(porNumDesc).map(t => {
       const cambio = previo[t.n] && previo[t.n] !== t.estado ? 'flash' : '';
       return `<tr class="${cambio}">
@@ -534,63 +655,105 @@ function initPantalla() {
   };
   setInterval(reloj, 1000); reloj();
 
-  // 1. Suscripción instantánea a eventos de cambio
+  function pulsarSincronizacion() {
+    const chip = $('#chip-sync');
+    if (chip) {
+      chip.classList.add('pulse-sync');
+      setTimeout(() => chip.classList.remove('pulse-sync'), 600);
+    }
+  }
+
+  // 1. Escuchar actualizaciones por el canal central
   RC.onChange(db => {
     render(db);
+    pulsarSincronizacion();
   });
 
-  // 2. Render inicial
+  // 2. Conexión de BroadcastChannel directa e independiente para pantalla.html
+  if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+    try {
+      const canalPantalla = new BroadcastChannel(RC.CHANNEL_NAME || 'reparacel_broadcast_channel');
+      canalPantalla.addEventListener('message', (event) => {
+        if (event && event.data) {
+          const db = event.data.db || RC.cargar();
+          render(db);
+          pulsarSincronizacion();
+        }
+      });
+    } catch (e) {
+      console.warn('Error conectando canal directo en pantalla:', e);
+    }
+  }
+
+  // 3. Render inicial
   render(RC.cargar());
 
-  // 3. Heartbeat / Poller de seguridad (cada 400ms) para garantizar 100% de actualización
-  // incluso si la pestaña está en segundo plano o el navegador suspende BroadcastChannel
+  // 4. Poller de alta fidelidad para sincronización continua sin pérdidas
   setInterval(() => {
     try {
-      const raw = localStorage.getItem('reparcel_db_v1');
+      const raw = localStorage.getItem(RC.KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.ultimoCambio && parsed.ultimoCambio !== ultimoTimestamp) {
           render(parsed);
+          pulsarSincronizacion();
         }
       }
     } catch (e) {}
-  }, 400);
+  }, 250);
 
   RC.iniciarMotor();
 }
 
 /* =====================================================================
-   PANTALLA 4: tecnico.html (panel de taller)
+   PANTALLA 4: tecnico.html (panel con acceso por CONTRASEÑA GENERAL)
    ===================================================================== */
 function initTecnico() {
-  const form = $('#form-tecnico');
-  const errorEl = $('#error-tec');
-  const selTec = $('#tec-activo');
-  let tecnicoActivo = null;
+  const bloqueLogin = $('#bloque-login-tec');
+  const bloquePanel = $('#bloque-panel-tec');
+  const formLogin = $('#form-login-tec');
+  const errLogin = $('#error-login-tec');
+  const btnLogout = $('#btn-logout-tec');
 
-  if ($('#t-cedula')) {
-    $('#t-cedula').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, ''); });
+  // Control de sesión de técnico
+  function estaAutenticado() {
+    return sessionStorage.getItem('reparacel_tec_auth') === 'true';
   }
 
-  if (form) {
-    form.addEventListener('submit', e => {
+  function actualizarVistaAuth() {
+    const auth = estaAutenticado();
+    if (bloqueLogin) bloqueLogin.hidden = auth;
+    if (bloquePanel) bloquePanel.hidden = !auth;
+    if (btnLogout) btnLogout.hidden = !auth;
+    if (auth) render(RC.cargar());
+  }
+
+  if (formLogin) {
+    formLogin.addEventListener('submit', e => {
       e.preventDefault();
-      if (errorEl) errorEl.textContent = '';
-      const dispositivos = [...form.querySelectorAll('input[name="disp"]:checked')].map(c => c.value);
-      const r = RC.registrarTecnico({
-        nombre: $('#t-nombre').value,
-        cedula: $('#t-cedula').value.trim(),
-        dispositivos
-      });
-      if (!r.ok) {
-        if (errorEl) errorEl.textContent = r.error;
-        toast(r.error, true);
-        return;
+      errLogin.textContent = '';
+      const pass = $('#pass-tec').value;
+      if (RC.verificarPassTecnico(pass)) {
+        sessionStorage.setItem('reparacel_tec_auth', 'true');
+        $('#pass-tec').value = '';
+        actualizarVistaAuth();
+        toast('Acceso concedido al panel técnico');
+      } else {
+        errLogin.textContent = 'Contraseña incorrecta. (Por defecto: tecnico123)';
       }
-      form.reset();
-      toast(r.modulo ? `Técnico registrado. Se habilitó el Módulo ${r.modulo}` : 'Técnico registrado satisfactoriamente');
     });
   }
+
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      sessionStorage.removeItem('reparacel_tec_auth');
+      actualizarVistaAuth();
+      toast('Sesión de técnico finalizada');
+    });
+  }
+
+  const selTec = $('#tec-activo');
+  let tecnicoActivo = null;
 
   if (selTec) {
     selTec.addEventListener('change', () => { tecnicoActivo = Number(selTec.value) || null; });
@@ -608,17 +771,6 @@ function initTecnico() {
     });
   }
 
-  // Delegación de eventos en técnicos
-  if ($('#lista-tecnicos')) {
-    $('#lista-tecnicos').addEventListener('click', e => {
-      const b = e.target.closest('[data-del]');
-      if (b) {
-        RC.eliminarTecnico(Number(b.dataset.del));
-        toast('Técnico eliminado');
-      }
-    });
-  }
-
   // Despacho de turnos por parte del técnico
   if ($('#tabla-gestion')) {
     $('#tabla-gestion').addEventListener('click', e => {
@@ -627,7 +779,6 @@ function initTecnico() {
       const turnoId = Number(b.dataset.id);
       const nuevoEstado = b.dataset.estado;
 
-      // Auto-seleccionar primer técnico si aún no seleccionó uno
       if (nuevoEstado === 'reparando' && !tecnicoActivo) {
         const dbActual = RC.cargar();
         if (dbActual.tecnicos.length > 0) {
@@ -646,29 +797,16 @@ function initTecnico() {
   }
 
   function render(db) {
+    if (!estaAutenticado()) return;
     const manual = db.modo === 'manual';
     if ($('#modo-auto')) $('#modo-auto').classList.toggle('on', !manual);
     if ($('#modo-manual')) $('#modo-manual').classList.toggle('on', manual);
     if ($('#hint-modo')) {
       $('#hint-modo').textContent = manual
-        ? 'Modo manual: tú decides cuándo cambia el estado de cada turno. La pantalla de clientes se actualiza automáticamente.'
+        ? 'Modo manual: tú decides cuándo cambia el estado de cada turno. Al pasar a "Reparar", el siguiente en espera aparece automáticamente en la pantalla de clientes.'
         : `Modo automático: cada turno pasa de "Siguiente" a "Listo" en ${(RC.CONFIG.tiempoSiguiente + RC.CONFIG.tiempoReparando) / 1000} segundos.`;
     }
 
-    // Lista de técnicos
-    if ($('#lista-tecnicos')) {
-      $('#lista-tecnicos').innerHTML = db.tecnicos.length
-        ? db.tecnicos.map(t => `<li>
-            <div>
-              <strong>${RC.esc(t.nombre)}</strong>
-              <small>CI ${t.cedula} · ${t.dispositivos.join(', ')}<br>Módulo(s): ${RC.modulosDeTecnico(db, t).join(', ') || '—'}</small>
-            </div>
-            <button class="btn-x" data-del="${t.id}" title="Eliminar técnico">✕</button>
-          </li>`).join('')
-        : '<li class="vacio">Sin técnicos registrados</li>';
-    }
-
-    // Selector de técnico activo
     if (selTec) {
       if (!tecnicoActivo && db.tecnicos.length > 0) {
         tecnicoActivo = db.tecnicos[0].id;
@@ -678,11 +816,10 @@ function initTecnico() {
       if (!db.tecnicos.some(t => t.id === tecnicoActivo)) tecnicoActivo = null;
     }
 
-    // Botones de acción según el modo
     const dis = manual ? '' : 'disabled';
     const acciones = t => {
       if (t.estado === 'espera')    return `<button class="btn-accion" ${dis} data-id="${t.n}" data-estado="siguiente" title="Llamar al banco">Llamar</button>`;
-      if (t.estado === 'siguiente') return `<button class="btn-accion rep" ${dis} data-id="${t.n}" data-estado="reparando" title="Iniciar reparación">Reparar</button>
+      if (t.estado === 'siguiente') return `<button class="btn-accion rep" ${dis} data-id="${t.n}" data-estado="reparando" title="Iniciar reparación (promueve al siguiente de espera)">Reparar</button>
                                             <button class="btn-accion ok" ${dis} data-id="${t.n}" data-estado="listo" title="Finalizar servicio">Listo</button>`;
       if (t.estado === 'reparando') return `<button class="btn-accion ok" ${dis} data-id="${t.n}" data-estado="listo" title="Finalizar servicio">Listo</button>`;
       return '—';
@@ -703,8 +840,197 @@ function initTecnico() {
   }
 
   RC.onChange(render);
-  render(RC.cargar());
+  actualizarVistaAuth();
   RC.iniciarMotor();
+}
+
+/* =====================================================================
+   PANTALLA 5: admin.html (PANEL SUPER ADMIN CON CONTRASEÑA ÚNICA)
+   ===================================================================== */
+function initAdmin() {
+  const bloqueLogin = $('#bloque-login-admin');
+  const bloqueAdmin = $('#bloque-panel-admin');
+  const formLogin = $('#form-login-admin');
+  const errLogin = $('#error-login-admin');
+  const btnLogout = $('#btn-logout-admin');
+
+  const formTecnico = $('#form-admin-tecnico');
+  const errTec = $('#error-admin-tec');
+  const listaTec = $('#lista-admin-tecnicos');
+  const modalEdit = $('#modal-edit-tecnico');
+  const formEdit = $('#form-edit-tecnico');
+
+  function estaAutenticado() {
+    return sessionStorage.getItem('reparacel_admin_auth') === 'true';
+  }
+
+  function actualizarVistaAuth() {
+    const auth = estaAutenticado();
+    if (bloqueLogin) bloqueLogin.hidden = auth;
+    if (bloqueAdmin) bloqueAdmin.hidden = !auth;
+    if (btnLogout) btnLogout.hidden = !auth;
+    if (auth) render(RC.cargar());
+  }
+
+  if (formLogin) {
+    formLogin.addEventListener('submit', e => {
+      e.preventDefault();
+      errLogin.textContent = '';
+      const pass = $('#pass-admin').value;
+      if (RC.verificarPassAdmin(pass)) {
+        sessionStorage.setItem('reparacel_admin_auth', 'true');
+        $('#pass-admin').value = '';
+        actualizarVistaAuth();
+        toast('Bienvenido al Panel Super Admin');
+      } else {
+        errLogin.textContent = 'Contraseña de Super Admin incorrecta. (Por defecto: admin2026)';
+      }
+    });
+  }
+
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      sessionStorage.removeItem('reparacel_admin_auth');
+      actualizarVistaAuth();
+      toast('Sesión de Super Admin cerrada');
+    });
+  }
+
+  // Registrar técnico nuevo
+  if (formTecnico) {
+    if ($('#adm-cedula')) {
+      $('#adm-cedula').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, ''); });
+    }
+
+    formTecnico.addEventListener('submit', e => {
+      e.preventDefault();
+      errTec.textContent = '';
+      const dispositivos = [...formTecnico.querySelectorAll('input[name="disp"]:checked')].map(c => c.value);
+      const r = RC.registrarTecnico({
+        nombre: $('#adm-nombre').value,
+        cedula: $('#adm-cedula').value.trim(),
+        dispositivos
+      });
+      if (!r.ok) {
+        errTec.textContent = r.error;
+        toast(r.error, true);
+        return;
+      }
+      formTecnico.reset();
+      toast(r.modulo ? `Técnico registrado. Se habilitó el Módulo ${r.modulo}` : 'Técnico registrado satisfactoriamente');
+    });
+  }
+
+  // Acciones en la lista: Editar / Eliminar
+  if (listaTec) {
+    listaTec.addEventListener('click', e => {
+      const btnDel = e.target.closest('[data-del]');
+      if (btnDel) {
+        const id = Number(btnDel.dataset.del);
+        if (confirm('¿Estás seguro de eliminar este técnico de la nómina?')) {
+          RC.eliminarTecnico(id);
+          toast('Técnico eliminado de la nómina');
+        }
+        return;
+      }
+
+      const btnEdit = e.target.closest('[data-edit]');
+      if (btnEdit) {
+        const id = Number(btnEdit.dataset.edit);
+        abrirModalEditar(id);
+      }
+    });
+  }
+
+  function abrirModalEditar(id) {
+    const db = RC.cargar();
+    const tec = db.tecnicos.find(t => t.id === id);
+    if (!tec || !modalEdit) return;
+
+    $('#edit-id').value = tec.id;
+    $('#edit-nombre').value = tec.nombre;
+    $('#edit-cedula').value = tec.cedula;
+
+    formEdit.querySelectorAll('input[name="edit-disp"]').forEach(chk => {
+      chk.checked = tec.dispositivos.includes(chk.value);
+    });
+
+    $('#error-edit-tec').textContent = '';
+    modalEdit.hidden = false;
+  }
+
+  if ($('#btn-cancel-edit')) {
+    $('#btn-cancel-edit').addEventListener('click', () => {
+      if (modalEdit) modalEdit.hidden = true;
+    });
+  }
+
+  if (formEdit) {
+    if ($('#edit-cedula')) {
+      $('#edit-cedula').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, ''); });
+    }
+
+    formEdit.addEventListener('submit', e => {
+      e.preventDefault();
+      const id = Number($('#edit-id').value);
+      const nombre = $('#edit-nombre').value;
+      const cedula = $('#edit-cedula').value.trim();
+      const dispositivos = [...formEdit.querySelectorAll('input[name="edit-disp"]:checked')].map(c => c.value);
+
+      const r = RC.editarTecnico({ id, nombre, cedula, dispositivos });
+      if (!r.ok) {
+        $('#error-edit-tec').textContent = r.error;
+        toast(r.error, true);
+        return;
+      }
+
+      modalEdit.hidden = true;
+      toast('Técnico actualizado correctamente');
+    });
+  }
+
+  // Configuración de contraseñas
+  const formPass = $('#form-passwords');
+  if (formPass) {
+    formPass.addEventListener('submit', e => {
+      e.preventDefault();
+      const passTec = $('#cfg-pass-tec').value.trim();
+      const passAdm = $('#cfg-pass-adm').value.trim();
+      if (!passTec || !passAdm) {
+        toast('Las contraseñas no pueden estar vacías', true);
+        return;
+      }
+      RC.setAuthConfig({ passTecnico: passTec, passAdmin: passAdm });
+      toast('Contraseñas de acceso actualizadas');
+    });
+  }
+
+  function render(db) {
+    if (!estaAutenticado()) return;
+
+    if (listaTec) {
+      listaTec.innerHTML = db.tecnicos.length
+        ? db.tecnicos.map(t => `
+            <li class="admin-tec-item">
+              <div>
+                <strong>${RC.esc(t.nombre)}</strong>
+                <small>CI ${t.cedula} · Línea(s): ${t.dispositivos.join(', ')}<br>Módulo: ${RC.modulosDeTecnico(db, t).join(', ') || 'Base'}</small>
+              </div>
+              <div class="admin-tec-actions">
+                <button class="btn-sm btn-edit" data-edit="${t.id}" title="Editar técnico">Editar</button>
+                <button class="btn-sm btn-del" data-del="${t.id}" title="Eliminar técnico">Eliminar</button>
+              </div>
+            </li>`).join('')
+        : '<li class="vacio">Sin técnicos registrados en la nómina</li>';
+    }
+
+    const cfg = RC.getAuthConfig();
+    if ($('#cfg-pass-tec')) $('#cfg-pass-tec').value = cfg.passTecnico;
+    if ($('#cfg-pass-adm')) $('#cfg-pass-adm').value = cfg.passAdmin;
+  }
+
+  RC.onChange(render);
+  actualizarVistaAuth();
 }
 
 /* ---------- Arranque según la página ---------- */
@@ -720,4 +1046,5 @@ document.addEventListener('DOMContentLoaded', () => {
   if (pagina === 'index') initIndex();
   if (pagina === 'pantalla') initPantalla();
   if (pagina === 'tecnico') initTecnico();
+  if (pagina === 'admin') initAdmin();
 });

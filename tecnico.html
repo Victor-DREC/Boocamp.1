@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>REPARACEL | Panel de Técnicos</title>
+  <title>REPARACEL | Panel del Técnico</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-page="tecnico">
@@ -18,8 +18,16 @@
     <div class="topbar-right">
       <a class="link-top" href="pantalla.html" target="_blank">
         <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
-        <span>Pantalla de clientes</span>
+        <span>Pantalla clientes</span>
       </a>
+      <a class="link-top admin-badge-link" href="admin.html">
+        <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>Super Admin</span>
+      </a>
+      <button class="link-top btn-logout" id="btn-logout-tec" hidden>
+        <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+        <span>Salir</span>
+      </button>
       <a class="link-top" href="index.html">
         <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         <span>Inicio</span>
@@ -28,50 +36,39 @@
   </header>
 
   <main class="container wide">
-    <div class="grid-tec">
 
-      <!-- Registro de técnico -->
-      <section class="card">
-        <h2>Nuevo Técnico</h2>
-        <form id="form-tecnico" novalidate>
-          <label for="t-nombre">Nombre Completo</label>
-          <input id="t-nombre" maxlength="60" placeholder="Ej. Carlos Mendoza" required>
+    <!-- Bloque de Login de Técnico (Protegido por Contraseña General) -->
+    <section class="card form-card login-card" id="bloque-login-tec">
+      <div class="login-head">
+        <div class="login-ico">
+          <svg class="ico-svg lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h2>Acceso al Panel Técnico</h2>
+        <p>Ingresa la contraseña general de técnicos autorizados del taller.</p>
+      </div>
 
-          <label for="t-cedula">Cédula de Identidad</label>
-          <input id="t-cedula" inputmode="numeric" maxlength="10" placeholder="10 dígitos numéricos" required>
+      <form id="form-login-tec" novalidate>
+        <label for="pass-tec">Contraseña de Técnicos</label>
+        <input type="password" id="pass-tec" placeholder="Contraseña general (Por defecto: tecnico123)" required autocomplete="current-password">
 
-          <label>Dispositivos de Especialidad</label>
-          <div class="checks">
-            <label>
-              <input type="checkbox" name="disp" value="celular" checked>
-              <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
-              <span>Celular</span>
-            </label>
-            <label>
-              <input type="checkbox" name="disp" value="tablet">
-              <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
-              <span>Tablet</span>
-            </label>
-            <label>
-              <input type="checkbox" name="disp" value="laptop">
-              <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></svg>
-              <span>Laptop</span>
-            </label>
-          </div>
-          <p class="hint">Los 3 primeros técnicos se ubican en los módulos A, B y C. Desde el 4.º técnico se crea automáticamente un módulo nuevo (D, E, F…).</p>
+        <p class="error" id="error-login-tec" role="alert"></p>
+        <button class="btn" type="submit">Ingresar al Taller</button>
+      </form>
 
-          <p class="error" id="error-tec" role="alert"></p>
-          <button class="btn" type="submit">Registrar Técnico</button>
-        </form>
+      <div class="login-footer">
+        <span>¿Eres administrador de taller?</span>
+        <a href="admin.html">Acceder como Super Admin &rarr;</a>
+      </div>
+    </section>
 
-        <h3 class="mt">Técnicos Registrados</h3>
-        <ul class="lista-tec" id="lista-tecnicos"></ul>
-      </section>
-
-      <!-- Gestión de turnos -->
-      <section class="card">
+    <!-- Bloque del Panel de Trabajo (Solo visible con sesión iniciada) -->
+    <section id="bloque-panel-tec" hidden>
+      <div class="card">
         <div class="card-head">
-          <h2>Gestión de Turnos</h2>
+          <div>
+            <h2>Gestión de Turnos y Despacho</h2>
+            <p class="card-desc">Atiende los turnos de tu módulo. Al pasar un cliente a <strong>Reparar</strong>, el siguiente cliente en espera avanza automáticamente.</p>
+          </div>
           <div class="switch" role="group" aria-label="Modo de cambio de estado">
             <button type="button" id="modo-auto">
               <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -87,7 +84,7 @@
         <p class="hint" id="hint-modo"></p>
 
         <div class="fila-tec">
-          <label for="tec-activo">Técnico activo:</label>
+          <label for="tec-activo">Técnico activo en este banco:</label>
           <select id="tec-activo"></select>
         </div>
 
@@ -111,9 +108,9 @@
           <button class="btn secundario" id="btn-limpiar" type="button">Limpiar finalizados</button>
           <button class="btn peligro" id="btn-reiniciar" type="button">Reiniciar todo</button>
         </div>
-      </section>
+      </div>
+    </section>
 
-    </div>
   </main>
 
   <script src="app.js"></script>
