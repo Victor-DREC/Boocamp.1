@@ -102,18 +102,8 @@ const RC = (() => {
     getModulos(db).filter(m => m.tecnicos.some(x => x.id === tec.id)).map(m => m.letra);
 
   function validarCedula(c) {
-    if (!/^\d{10}$/.test(c)) return false;
-    if (!CONFIG.validarCedula) return true;
-    const prov = +c.slice(0, 2);
-    if (prov < 1 || prov > 24 || +c[2] >= 6) return false;
-    let suma = 0;
-    for (let i = 0; i < 9; i++) {
-      let d = +c[i] * (i % 2 === 0 ? 2 : 1);
-      if (d > 9) d -= 9;
-      suma += d;
-    }
-    return (10 - (suma % 10)) % 10 === +c[9];
-  }
+  return /^\d{10}$/.test(c);
+}
 
   const enmascarar = c => c.slice(0, 3) + '•••••' + c.slice(-2);
   const hora = ts => new Date(ts).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
