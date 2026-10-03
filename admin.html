@@ -107,6 +107,50 @@
               <button class="btn secundario mt" type="submit">Actualizar Contraseñas</button>
             </form>
           </div>
+
+          <!-- Gestión de Ubicación y Dirección del Local -->
+          <div class="mt-admin-box">
+            <h3>
+              <svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+              <span>Dirección y Ubicación del Local</span>
+            </h3>
+            <p class="hint">Modifica la información y coordenadas del taller. El mapa interactivo y la ruta en la pantalla principal se actualizarán en tiempo real.</p>
+            <form id="form-ubicacion-admin">
+              <label for="adm-loc-nombre">Nombre de la Sucursal / Taller:</label>
+              <input type="text" id="adm-loc-nombre" required placeholder="Ej. REPARACEL · Taller Central">
+
+              <label for="adm-loc-direccion">Dirección Física:</label>
+              <input type="text" id="adm-loc-direccion" required placeholder="Ej. Av. Amazonas N24-196 y Luis Cordero">
+
+              <label for="adm-loc-referencia">Referencia de Encuentro:</label>
+              <input type="text" id="adm-loc-referencia" placeholder="Ej. Frente al Edificio España, Local #12">
+
+              <label for="adm-loc-ciudad">Ciudad / Región:</label>
+              <input type="text" id="adm-loc-ciudad" required placeholder="Ej. Quito, Ecuador">
+
+              <label for="adm-loc-telefono">Teléfono / WhatsApp de Contacto:</label>
+              <input type="text" id="adm-loc-telefono" required placeholder="Ej. 099 999 9999">
+
+              <label for="adm-loc-horario">Horario de Atención:</label>
+              <input type="text" id="adm-loc-horario" required placeholder="Ej. Lunes a Viernes: 09:00 – 18:00 | Sábados: 09:00 – 13:00">
+
+              <div class="grid-2-inline">
+                <div>
+                  <label for="adm-loc-lat">Latitud GPS:</label>
+                  <input type="number" step="any" id="adm-loc-lat" required placeholder="-0.2038">
+                </div>
+                <div>
+                  <label for="adm-loc-lng">Longitud GPS:</label>
+                  <input type="number" step="any" id="adm-loc-lng" required placeholder="-78.4947">
+                </div>
+              </div>
+
+              <div class="acciones-fila" style="margin-top: 0.85rem;">
+                <button class="btn btn-sm" type="submit">Guardar Ubicación del Local</button>
+                <button class="btn btn-sm secundario" type="button" id="btn-gps-admin">Usar mi GPS actual</button>
+              </div>
+            </form>
+          </div>
         </section>
 
         <!-- Columna Derecha: Nómina y Edición/Eliminación de Técnicos -->

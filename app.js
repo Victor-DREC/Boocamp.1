@@ -74,6 +74,17 @@ const RC = (() => {
     'Revisión técnica'
   ];
 
+  const UBICACION_DEFAULT = {
+    nombreLocal: 'REPARACEL · Taller Central',
+    direccion: 'Av. Amazonas N24-196 y Luis Cordero',
+    referencia: 'Edificio España, Local #12 (Planta Baja)',
+    ciudad: 'Quito, Ecuador',
+    telefono: '099 999 9999',
+    horario: 'Lunes a Viernes: 09:00 – 18:00 | Sábados: 09:00 – 13:00',
+    lat: -0.2038,
+    lng: -78.4947
+  };
+
   const KEY = 'reparcel_db_v1';
   const CHANNEL_NAME = 'reparacel_broadcast_channel';
   const PING_KEY = 'reparacel_ping';
@@ -97,6 +108,7 @@ const RC = (() => {
     seq: 0,
     extraSeq: 0,
     modo: 'auto',
+    ubicacion: Object.assign({}, UBICACION_DEFAULT),
     ultimoCambio: Date.now()
   });
 
@@ -104,10 +116,28 @@ const RC = (() => {
     try {
       const raw = localStorage.getItem(KEY);
       const db = raw ? JSON.parse(raw) : null;
-      return db ? Object.assign(vacio(), db) : vacio();
+      const base = vacio();
+      if (db) {
+        return Object.assign(base, db, {
+          ubicacion: Object.assign({}, UBICACION_DEFAULT, db.ubicacion || {})
+        });
+      }
+      return base;
     } catch {
       return vacio();
     }
+  }
+
+  function getUbicacion(db) {
+    const d = db || cargar();
+    return Object.assign({}, UBICACION_DEFAULT, d.ubicacion || {});
+  }
+
+  function actualizarUbicacion(nueva) {
+    const db = cargar();
+    db.ubicacion = Object.assign(getUbicacion(db), nueva);
+    guardar(db, { accion: 'actualizar_ubicacion' });
+    return db.ubicacion;
   }
 
   function guardar(db, metadata = {}) {
@@ -475,6 +505,7 @@ const RC = (() => {
     cargar, guardar, onChange, iniciarMotor,
     crearTurno, cambiarEstado, setModo, limpiarFinalizados, reiniciarTodo,
     registrarTecnico, editarTecnico, eliminarTecnico,
+    UBICACION_DEFAULT, getUbicacion, actualizarUbicacion,
     getAuthConfig, setAuthConfig, verificarPassTecnico, verificarPassAdmin,
     enmascarar, hora, esc
   };
@@ -571,6 +602,132 @@ function initIndex() {
       bloqueForm.hidden = false;
     });
   }
+
+  /* ---------- Mapa Embebido sin API y Cómo Llegar al Taller ---------- */
+  function generarUrlOsmEmbed(lat, lng) {
+    const deltaLat = 0.005;
+    const deltaLng = 0.008;
+    const minLon = (lng - deltaLng).toFixed(5);
+    const minLat = (lat - deltaLat).toFixed(5);
+    const maxLon = (lng + deltaLng).toFixed(5);
+    const maxLat = (lat + deltaLat).toFixed(5);
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon}%2C${minLat}%2C${maxLon}%2C${maxLat}&layer=mapnik&marker=${lat.toFixed(5)}%2C${lng.toFixed(5)}`;
+  }
+
+  function generarUrlRutaOsmEmbed(lat1, lon1, lat2, lon2) {
+    const minLon = (Math.min(lon1, lon2) - 0.01).toFixed(5);
+    const maxLon = (Math.max(lon1, lon2) + 0.01).toFixed(5);
+    const minLat = (Math.min(lat1, lat2) - 0.01).toFixed(5);
+    const maxLat = (Math.max(lat1, lat2) + 0.01).toFixed(5);
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon}%2C${minLat}%2C${maxLon}%2C${maxLat}&layer=mapnik&marker=${lat2.toFixed(5)}%2C${lon2.toFixed(5)}`;
+  }
+
+  function actualizarTextosUbicacion(ubicacion) {
+    if ($('#info-horario')) $('#info-horario').innerHTML = RC.esc(ubicacion.horario).replace(/\|/g, '<br>');
+    if ($('#info-ubicacion')) $('#info-ubicacion').innerHTML = `${RC.esc(ubicacion.direccion)}<br>${RC.esc(ubicacion.ciudad)}` + (ubicacion.referencia ? `<br><small style="color:var(--muted);">${RC.esc(ubicacion.referencia)}</small>` : '');
+    if ($('#info-contacto')) $('#info-contacto').innerHTML = `Tel: ${RC.esc(ubicacion.telefono)}<br>soporte@reparacel.com`;
+    if ($('#mapa-titulo-local')) $('#mapa-titulo-local').textContent = ubicacion.nombreLocal;
+    if ($('#btn-abrir-gmaps')) {
+      $('#btn-abrir-gmaps').href = `https://www.google.com/maps/dir/?api=1&destination=${ubicacion.lat},${ubicacion.lng}`;
+    }
+    const iframe = $('#mapa-iframe');
+    if (iframe) {
+      iframe.src = generarUrlOsmEmbed(ubicacion.lat, ubicacion.lng);
+    }
+  }
+
+  function initMapa() {
+    const iframe = $('#mapa-iframe');
+    const u = RC.getUbicacion();
+    actualizarTextosUbicacion(u);
+
+    if ($('#btn-mi-gps')) {
+      $('#btn-mi-gps').addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          toast('La geolocalización no es soportada por tu navegador', true);
+          return;
+        }
+        toast('Obteniendo tu posición GPS actual...');
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            const { latitude, longitude } = pos.coords;
+            const input = $('#input-origen-ruta');
+            if (input) input.value = `Mi GPS (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+            aplicarRuta(latitude, longitude, `${latitude},${longitude}`);
+            toast('Ruta lista. Presiona Iniciar Ruta para navegar');
+          },
+          () => {
+            toast('No se pudo acceder a tu GPS. Escribe tu dirección de partida.', true);
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      });
+    }
+
+    if ($('#btn-trazar-ruta')) {
+      $('#btn-trazar-ruta').addEventListener('click', () => {
+        const input = $('#input-origen-ruta');
+        const val = input ? input.value.trim() : '';
+        if (!val) {
+          toast('Ingresa tu punto de partida', true);
+          return;
+        }
+        const partes = val.split(',');
+        if (partes.length === 2 && !isNaN(parseFloat(partes[0])) && !isNaN(parseFloat(partes[1]))) {
+          aplicarRuta(parseFloat(partes[0]), parseFloat(partes[1]), val);
+        } else {
+          aplicarRuta(null, null, val);
+        }
+      });
+    }
+
+    if ($('#btn-limpiar-ruta')) {
+      $('#btn-limpiar-ruta').addEventListener('click', () => {
+        const curU = RC.getUbicacion();
+        if (iframe) iframe.src = generarUrlOsmEmbed(curU.lat, curU.lng);
+        if ($('#input-origen-ruta')) $('#input-origen-ruta').value = '';
+        if ($('#ruta-stats')) $('#ruta-stats').hidden = true;
+        if ($('#btn-limpiar-ruta')) $('#btn-limpiar-ruta').hidden = true;
+      });
+    }
+
+    function aplicarRuta(origLat, origLng, textoOrigen) {
+      const curU = RC.getUbicacion();
+      if (iframe && origLat !== null && origLng !== null) {
+        iframe.src = generarUrlRutaOsmEmbed(origLat, origLng, curU.lat, curU.lng);
+
+        const R = 6371;
+        const dLat = (curU.lat - origLat) * Math.PI / 180;
+        const dLon = (curU.lng - origLng) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(origLat * Math.PI / 180) * Math.cos(curU.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distKm = (R * c).toFixed(1);
+
+        if ($('#stat-distancia')) $('#stat-distancia').textContent = `${distKm} km`;
+        if ($('#stat-distancia-wrap')) $('#stat-distancia-wrap').hidden = false;
+        if ($('#stat-tiempo')) $('#stat-tiempo').textContent = `~${Math.round(distKm * 2.5)} min en auto`;
+        if ($('#stat-tiempo-wrap')) $('#stat-tiempo-wrap').hidden = false;
+      } else {
+        if ($('#stat-distancia-wrap')) $('#stat-distancia-wrap').hidden = true;
+        if ($('#stat-tiempo-wrap')) $('#stat-tiempo-wrap').hidden = true;
+      }
+
+      if ($('#stat-destino')) $('#stat-destino').textContent = curU.nombreLocal;
+      if ($('#btn-link-gps-directo')) {
+        $('#btn-link-gps-directo').href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(textoOrigen)}&destination=${curU.lat},${curU.lng}&travelmode=driving`;
+      }
+      if ($('#ruta-stats')) $('#ruta-stats').hidden = false;
+      if ($('#btn-limpiar-ruta')) $('#btn-limpiar-ruta').hidden = false;
+    }
+  }
+
+  initMapa();
+
+  RC.onChange(db => {
+    if (db && db.ubicacion) {
+      actualizarTextosUbicacion(db.ubicacion);
+    }
+  });
 }
 
 /* =====================================================================
@@ -1005,6 +1162,44 @@ function initAdmin() {
     });
   }
 
+  // Configuración de Ubicación y Dirección del Local
+  const formUbicacion = $('#form-ubicacion-admin');
+  if (formUbicacion) {
+    formUbicacion.addEventListener('submit', e => {
+      e.preventDefault();
+      const u = {
+        nombreLocal: $('#adm-loc-nombre').value.trim(),
+        direccion: $('#adm-loc-direccion').value.trim(),
+        referencia: $('#adm-loc-referencia').value.trim(),
+        ciudad: $('#adm-loc-ciudad').value.trim(),
+        telefono: $('#adm-loc-telefono').value.trim(),
+        horario: $('#adm-loc-horario').value.trim(),
+        lat: parseFloat($('#adm-loc-lat').value) || RC.UBICACION_DEFAULT.lat,
+        lng: parseFloat($('#adm-loc-lng').value) || RC.UBICACION_DEFAULT.lng
+      };
+      RC.actualizarUbicacion(u);
+      toast('Ubicación y dirección del taller actualizadas');
+    });
+
+    if ($('#btn-gps-admin')) {
+      $('#btn-gps-admin').addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          toast('Geolocalización no soportada', true);
+          return;
+        }
+        toast('Obteniendo coordenadas GPS...');
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            $('#adm-loc-lat').value = pos.coords.latitude.toFixed(6);
+            $('#adm-loc-lng').value = pos.coords.longitude.toFixed(6);
+            toast('Coordenadas capturadas con éxito');
+          },
+          () => toast('No se pudo acceder al GPS', true)
+        );
+      });
+    }
+  }
+
   function render(db) {
     if (!estaAutenticado()) return;
 
@@ -1027,6 +1222,16 @@ function initAdmin() {
     const cfg = RC.getAuthConfig();
     if ($('#cfg-pass-tec')) $('#cfg-pass-tec').value = cfg.passTecnico;
     if ($('#cfg-pass-adm')) $('#cfg-pass-adm').value = cfg.passAdmin;
+
+    const u = RC.getUbicacion(db);
+    if ($('#adm-loc-nombre')) $('#adm-loc-nombre').value = u.nombreLocal;
+    if ($('#adm-loc-direccion')) $('#adm-loc-direccion').value = u.direccion;
+    if ($('#adm-loc-referencia')) $('#adm-loc-referencia').value = u.referencia;
+    if ($('#adm-loc-ciudad')) $('#adm-loc-ciudad').value = u.ciudad;
+    if ($('#adm-loc-telefono')) $('#adm-loc-telefono').value = u.telefono;
+    if ($('#adm-loc-horario')) $('#adm-loc-horario').value = u.horario;
+    if ($('#adm-loc-lat')) $('#adm-loc-lat').value = u.lat;
+    if ($('#adm-loc-lng')) $('#adm-loc-lng').value = u.lng;
   }
 
   RC.onChange(render);
