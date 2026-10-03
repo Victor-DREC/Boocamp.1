@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REPARACEL | Panel del técnico</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="tecnico">
+
+  <header class="topbar">
+    <a class="brand" href="index.html">🔧 REPARA<span>CEL</span></a>
+    <div class="topbar-right">
+      <a class="link-top" href="pantalla.html" target="_blank">Abrir pantalla del cliente ↗</a>
+      <a class="link-top" href="index.html">Inicio</a>
+    </div>
+  </header>
+
+  <main class="container wide">
+    <div class="grid-tec">
+
+      <!-- Registro de técnico -->
+      <section class="card">
+        <h2>Nuevo técnico</h2>
+        <form id="form-tecnico" novalidate>
+          <label for="t-nombre">Nombre</label>
+          <input id="t-nombre" maxlength="60" placeholder="Nombre completo" required>
+
+          <label for="t-cedula">Cédula</label>
+          <input id="t-cedula" inputmode="numeric" maxlength="10" placeholder="10 dígitos" required>
+
+          <label>Dispositivos con los que trabajará</label>
+          <div class="checks">
+            <label><input type="checkbox" name="disp" value="celular"> 📱 Celular</label>
+            <label><input type="checkbox" name="disp" value="tablet"> 📟 Tablet</label>
+            <label><input type="checkbox" name="disp" value="laptop"> 💻 Laptop</label>
+          </div>
+          <p class="hint">Los 3 primeros técnicos se ubican en los módulos A, B y C según sus dispositivos. Desde el 4.º técnico se crea un módulo nuevo (D, E, F…).</p>
+
+          <p class="error" id="error-tec" role="alert"></p>
+          <button class="btn" type="submit">Registrar técnico</button>
+        </form>
+
+        <h3 class="mt">Técnicos registrados</h3>
+        <ul class="lista-tec" id="lista-tecnicos"></ul>
+      </section>
+
+      <!-- Gestión de turnos -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Gestión de turnos</h2>
+          <div class="switch" role="group" aria-label="Modo de cambio de estado">
+            <button type="button" id="modo-auto">⚙️ Automático</button>
+            <button type="button" id="modo-manual">✋ Manual</button>
+          </div>
+        </div>
+
+        <p class="hint" id="hint-modo"></p>
+
+        <div class="fila-tec">
+          <label for="tec-activo">Técnico activo:</label>
+          <select id="tec-activo"></select>
+        </div>
+
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr><th>Turno</th><th>Dispositivo</th><th>Daño</th><th>Técnico</th><th>Estado</th><th>Acción</th></tr>
+            </thead>
+            <tbody id="tabla-gestion"></tbody>
+          </table>
+        </div>
+
+        <div class="acciones-fila">
+          <button class="btn secundario" id="btn-limpiar" type="button">Limpiar finalizados</button>
+          <button class="btn peligro" id="btn-reiniciar" type="button">Reiniciar todo</button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
